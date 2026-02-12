@@ -3,7 +3,9 @@ import { useNavigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "../config/firebase";
 import { API_BASE_URL } from "../config/api";
+import { getAuth } from "firebase/auth";
 import Carousel from "../components/Carousel";
+import { API_BASE_URL } from "../config/api";
 import FilterBar from "../components/FilterBar";
 import Footer from "../components/Footer";
 
@@ -30,13 +32,28 @@ export default function Favorites() {
       setSearchQuery("");
       setFilterStyle("");
       setSortValue("recent");
-      const response = await fetch(
-        `${API_BASE_URL}/api/outfits/favorites?user_id=${user.uid}`
-      );
+      const firebaseAuth = getAuth();
+      const currentUser = (firebaseAuth && firebaseAuth.currentUser) || user;
+      if (!currentUser) {
+        console.warn("fetchFavorites: no authenticated user, aborting");
+        setError("You must be signed in to view favorites.");
+        setLoading(false);
+        return;
+      }
+
+      const uid = currentUser.uid;
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/outfits/favorites?user_id=${encodeURIComponent(uid)}`;
+      console.debug("fetchFavorites: requesting", url);
+
+      const response = await fetch(url);
       if (!response.ok) {
+        const body = await response.text().catch(() => null);
+        console.error("fetchFavorites: non-OK", response.status, body);
         setError("Failed to load favorites. Please try again.");
         return;
       }
+
       const data = await response.json();
       const favoritesList = data.data || [];
       setFavorites(favoritesList);
@@ -87,21 +104,37 @@ export default function Favorites() {
       setSearching(true);
       setError("");
       setSearchQuery(query);
-      const response = await fetch(
-        `${API_BASE_URL}/api/search?user_id=${user.uid}&q=${encodeURIComponent(query)}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        // Filter search results to only include favorited outfits
-        const favoriteIds = new Set(favorites.map(f => f.id));
-        const filteredResults = (data.data || []).filter(outfit => favoriteIds.has(outfit.id));
-        const sorted = applyFiltersAndSort(filteredResults, query, filterStyle, sortValue);
-        setDisplayedFavorites(sorted);
-        setIsSearching(true);
-      } else {
+      const firebaseAuth = getAuth();
+      const currentUser = (firebaseAuth && firebaseAuth.currentUser) || user;
+      if (!currentUser) {
+        console.warn("handleSearch (favorites): no authenticated user, aborting");
+        setError("You must be signed in to search favorites.");
+        setSearching(false);
+        setDisplayedFavorites([]);
+        return;
+      }
+
+      const uid = currentUser.uid;
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/search?user_id=${encodeURIComponent(uid)}&q=${encodeURIComponent(query)}`;
+      console.debug("Favorites.handleSearch: requesting", url);
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        const body = await response.text().catch(() => null);
+        console.error("Favorites.handleSearch: non-OK", response.status, body);
         setError("Failed to search favorites. Please try again.");
         setDisplayedFavorites([]);
+        return;
       }
+
+      const data = await response.json();
+      // Filter search results to only include favorited outfits
+      const favoriteIds = new Set(favorites.map(f => f.id));
+      const filteredResults = (data.data || []).filter(outfit => favoriteIds.has(outfit.id));
+      const sorted = applyFiltersAndSort(filteredResults, query, filterStyle, sortValue);
+      setDisplayedFavorites(sorted);
+      setIsSearching(true);
     } catch (error) {
       console.error("Error searching favorites:", error);
       setError("Unable to search. Please check your connection.");
@@ -373,16 +406,39 @@ export default function Favorites() {
                     <div className="relative bg-white/70 backdrop-blur-xl border-2 border-white rounded-3xl overflow-hidden shadow-lg group-hover:shadow-2xl transition-all duration-500 group-hover:-translate-y-1 hover:scale-105 flex flex-col h-full">
                       {/* Image Container - 4:5 aspect ratio */}
                       <div className="relative overflow-hidden bg-gradient-to-br from-stone-100 to-stone-50 aspect-[4/5] flex-shrink-0">
-                        {outfit.image_url || outfit.image ? (
-                          <>
-                            <img
-                              src={outfit.image_url || outfit.image}
-                              alt={outfit.name || "Outfit"}
-                              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                            />
-                            <div className="absolute inset-0 bg-gradient-to-t from-stone-900/40 via-transparent to-transparent"></div>
-                          </>
-                        ) : (
+                              {(() => {
+                                const rawImage = outfit.image_url || outfit.image;
+                                const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+                                const placeholder = "/images/placeholder.png";
+                                let imageSrc = rawImage;
+                                if (!imageSrc) imageSrc = placeholder;
+                                else if (imageSrc.startsWith("/")) imageSrc = `${baseUrl}${imageSrc}`;
+                                else if (!/^https?:\/\//i.test(imageSrc) && !imageSrc.startsWith("data:")) imageSrc = `${baseUrl}/${imageSrc}`;
+
+                                if (imageSrc) {
+                                  return (
+                                    <>
+                                      <img
+                                        src={imageSrc}
+                                        alt={outfit.name || "Outfit"}
+                                        className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                      />
+                                      <div className="absolute inset-0 bg-gradient-to-t from-stone-900/40 via-transparent to-transparent"></div>
+                                    </>
+                                  );
+                                }
+
+                                return (
+                                  <div className="w-full h-full flex flex-col items-center justify-center p-8">
+                                    <div className="bg-white/70 backdrop-blur-md border-2 border-white rounded-full p-8 mb-4 shadow-lg">
+                                      <svg className="w-16 h-16 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                      </svg>
+                                    </div>
+                                    <p className="text-stone-500 text-sm font-light uppercase tracking-[0.25em]">No Image</p>
+                                  </div>
+                                );
+                              })()}
                           <div className="w-full h-full flex flex-col items-center justify-center p-8">
                             <div className="bg-white/70 backdrop-blur-md border-2 border-white rounded-full p-8 mb-4 shadow-lg">
                               <svg className="w-16 h-16 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
