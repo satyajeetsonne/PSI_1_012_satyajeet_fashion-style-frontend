@@ -2,7 +2,53 @@ import { useState, useEffect } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../config/firebase";
-import { getAuth } from "firebase/auth";
+const BASE_URL = "https://psi-backend.vercel.app";
+
+const fetchOutfits = async () => {
+  try {
+    setLoading(true);
+    setError("");
+    setIsSearching(false);
+    setSearchQuery("");
+    setFilterStyle("");
+    setSortValue("recent");
+
+    const firebaseAuth = getAuth();
+    const currentUser = (firebaseAuth && firebaseAuth.currentUser) || user;
+    if (!currentUser) {
+      console.warn("fetchOutfits: no authenticated user found, aborting request");
+      setError("You must be signed in to view outfits.");
+      setLoading(false);
+      return;
+    }
+
+    const uid = currentUser.uid;
+    const url = `${BASE_URL.replace(/\/+$/g, "")}/api/outfits?user_id=${encodeURIComponent(uid)}`;
+    console.debug("fetchOutfits: requesting", url);
+
+    const response = await fetch(url, {
+      headers: { Accept: "application/json" },
+    });
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => null);
+      console.error("fetchOutfits: non-OK response", response.status, body);
+      setError("Failed to load outfits. Server returned an error.");
+      return;
+    }
+
+    const data = await response.json();
+    const outfitList = data?.data || [];
+    console.debug("fetchOutfits: received outfits count=", outfitList.length);
+    setOutfits(outfitList);
+    setDisplayedOutfits(outfitList);
+  } catch (err) {
+    console.error("Error fetching outfits:", err);
+    setError("Unable to connect to the server. Please check your connection.");
+  } finally {
+    setLoading(false);
+  }
+};import { getAuth } from "firebase/auth";
 import { API_BASE_URL } from "../config/api";
 import Carousel from "../components/Carousel";
 import UploadButton from "../components/UploadButton";
@@ -12,6 +58,7 @@ import Footer from "../components/Footer";
 
 export default function Dashboard() {
   const [user] = useAuthState(auth);
+  const BASE_URL = "https://psi-backend.vercel.app"; // no trailing slash
   const navigate = useNavigate();
   
   const [outfits, setOutfits] = useState([]);
@@ -438,16 +485,40 @@ export default function Dashboard() {
                 <div className="relative bg-white/70 backdrop-blur-xl border-2 border-white rounded-3xl overflow-hidden shadow-lg group-hover:shadow-2xl transition-all duration-500 group-hover:-translate-y-1 hover:scale-105 flex flex-col h-full">
                   {/* Image Container - 4:5 aspect ratio */}
                   <div className="relative overflow-hidden bg-gradient-to-br from-stone-100 to-stone-50 aspect-[4/5] flex-shrink-0">
-                    {outfit.image_url || outfit.image ? (
-                      <>
-                        <img
-                          src={outfit.image_url || outfit.image}
-                          alt={outfit.name || "Outfit"}
-                          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
-                        />
-                        <div className="absolute inset-0 bg-gradient-to-t from-stone-900/40 via-transparent to-transparent"></div>
-                      </>
-                    ) : (
+                            {(() => {
+                              const rawImage = outfit.image_url || outfit.image;
+                              if (rawImage) {
+                                const normalizedBase = String(BASE_URL).replace(/\/+$/g, "");
+                                let imageSrc = rawImage;
+                                if (imageSrc.startsWith("/")) {
+                                  imageSrc = `${normalizedBase}${imageSrc}`;
+                                } else if (!/^https?:\/\//i.test(imageSrc) && !imageSrc.startsWith("data:")) {
+                                  imageSrc = `${normalizedBase}/${imageSrc}`;
+                                }
+
+                                return (
+                                  <>
+                                    <img
+                                      src={imageSrc}
+                                      alt={outfit.name || "Outfit"}
+                                      className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                                    />
+                                    <div className="absolute inset-0 bg-gradient-to-t from-stone-900/40 via-transparent to-transparent"></div>
+                                  </>
+                                );
+                              }
+
+                              return (
+                                <div className="w-full h-full flex flex-col items-center justify-center p-8">
+                                  <div className="bg-white/70 backdrop-blur-md border-2 border-white rounded-full p-8 mb-4 shadow-lg">
+                                    <svg className="w-16 h-16 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                  </div>
+                                  <p className="text-stone-500 text-sm font-light uppercase tracking-[0.25em]">No Image</p>
+                                </div>
+                              );
+                            })()}
                       <div className="w-full h-full flex flex-col items-center justify-center p-8">
                         <div className="bg-white/70 backdrop-blur-md border-2 border-white rounded-full p-8 mb-4 shadow-lg">
                           <svg className="w-16 h-16 text-stone-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
