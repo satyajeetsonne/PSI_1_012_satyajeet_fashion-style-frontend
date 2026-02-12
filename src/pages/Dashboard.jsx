@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../config/firebase";
+import { getAuth } from "firebase/auth";
 import { API_BASE_URL } from "../config/api";
 import Carousel from "../components/Carousel";
 import UploadButton from "../components/UploadButton";
@@ -38,18 +39,33 @@ export default function Dashboard() {
       setSearchQuery("");
       setFilterStyle("");
       setSortValue("recent");
-      const response = await fetch(
-        `${API_BASE_URL}/api/outfits?user_id=${user.uid}`
-      );
-      
-      if (response.ok) {
-        const data = await response.json();
-        const outfitList = data.data || [];
-        setOutfits(outfitList);
-        setDisplayedOutfits(outfitList);
-      } else {
-        setError("Failed to load outfits. Please try again.");
+      const firebaseAuth = getAuth();
+      const currentUser = (firebaseAuth && firebaseAuth.currentUser) || user;
+      if (!currentUser) {
+        console.warn("fetchOutfits: no authenticated user found, aborting request");
+        setError("You must be signed in to view outfits.");
+        setLoading(false);
+        return;
       }
+
+      const uid = currentUser.uid;
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/outfits?user_id=${encodeURIComponent(uid)}`;
+      console.debug("fetchOutfits: requesting", url);
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        const body = await response.text().catch(() => null);
+        console.error("fetchOutfits: non-OK response", response.status, body);
+        setError("Failed to load outfits. Server returned an error.");
+        return;
+      }
+
+      const data = await response.json();
+      const outfitList = data.data || [];
+      console.debug("fetchOutfits: received outfits count=", outfitList.length);
+      setOutfits(outfitList);
+      setDisplayedOutfits(outfitList);
     } catch (error) {
       console.error("Error fetching outfits:", error);
       setError("Unable to connect to the server. Please check your connection.");
@@ -95,18 +111,35 @@ export default function Dashboard() {
       setSearching(true);
       setError("");
       setSearchQuery(query);
-      const response = await fetch(
-        `${API_BASE_URL}/api/search?user_id=${user.uid}&q=${encodeURIComponent(query)}`
-      );
-      if (response.ok) {
-        const data = await response.json();
-        const sorted = applyFiltersAndSort(data.data || [], query, filterStyle, sortValue);
-        setDisplayedOutfits(sorted);
-        setIsSearching(true);
-      } else {
-        setError("Failed to search outfits. Please try again.");
+
+      const firebaseAuth = getAuth();
+      const currentUser = (firebaseAuth && firebaseAuth.currentUser) || user;
+      if (!currentUser) {
+        console.warn("handleSearch: no authenticated user found, aborting search");
+        setError("You must be signed in to search outfits.");
+        setSearching(false);
         setDisplayedOutfits([]);
+        return;
       }
+
+      const uid = currentUser.uid;
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/search?user_id=${encodeURIComponent(uid)}&q=${encodeURIComponent(query)}`;
+      console.debug("handleSearch: requesting", url);
+
+      const response = await fetch(url);
+      if (!response.ok) {
+        const body = await response.text().catch(() => null);
+        console.error("handleSearch: non-OK response", response.status, body);
+        setError("Failed to search outfits. Server returned an error.");
+        setDisplayedOutfits([]);
+        return;
+      }
+
+      const data = await response.json();
+      const sorted = applyFiltersAndSort(data.data || [], query, filterStyle, sortValue);
+      setDisplayedOutfits(sorted);
+      setIsSearching(true);
     } catch (error) {
       console.error("Error searching outfits:", error);
       setError("Unable to search. Please check your connection.");
