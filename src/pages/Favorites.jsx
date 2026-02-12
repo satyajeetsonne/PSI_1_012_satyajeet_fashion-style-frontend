@@ -8,6 +8,7 @@ import Carousel from "../components/Carousel";
 import { API_BASE_URL } from "../config/api";
 import FilterBar from "../components/FilterBar";
 import Footer from "../components/Footer";
+import { normalizeImageUrl } from "../utils/imageUtils";
 
 export default function Favorites() {
   const navigate = useNavigate();
@@ -56,8 +57,13 @@ export default function Favorites() {
 
       const data = await response.json();
       const favoritesList = data.data || [];
-      setFavorites(favoritesList);
-      setDisplayedFavorites(favoritesList);
+      // Normalize images before updating state
+      const normalized = favoritesList.map((o) => ({
+        ...o,
+        image_url: normalizeImageUrl(o.image_url || o.image),
+      }));
+      setFavorites(normalized);
+      setDisplayedFavorites(normalized);
     } catch (err) {
       console.error(err);
       setError("Unable to connect to the server.");
@@ -412,6 +418,9 @@ export default function Favorites() {
                                 const placeholder = "/images/placeholder.png";
                                 let imageSrc = rawImage;
                                 if (!imageSrc) imageSrc = placeholder;
+                                // Rewrite dev-hosted absolute URLs to production base
+                                const devMatch = String(imageSrc).match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/.*)$/i);
+                                if (devMatch && devMatch[1]) imageSrc = `${baseUrl}${devMatch[1]}`;
                                 else if (imageSrc.startsWith("/")) imageSrc = `${baseUrl}${imageSrc}`;
                                 else if (!/^https?:\/\//i.test(imageSrc) && !imageSrc.startsWith("data:")) imageSrc = `${baseUrl}/${imageSrc}`;
 

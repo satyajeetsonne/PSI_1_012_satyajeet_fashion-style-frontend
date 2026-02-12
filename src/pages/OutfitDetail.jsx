@@ -3,11 +3,13 @@ import { useParams, useNavigate } from "react-router-dom";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { auth } from "../config/firebase";
 import { API_BASE_URL } from "../config/api";
+import { getAuth } from "firebase/auth";
 import ImageViewer from "../components/ImageViewer";
 import AnalysisView from "../components/AnalysisView";
 import MatchingSuggestions from "../components/MatchingSuggestions";
 import TagManager from "../components/TagManager";
 import Footer from "../components/Footer";
+import { normalizeImageUrl } from "../utils/imageUtils";
 
 export default function OutfitDetail() {
   const { id } = useParams();
@@ -30,9 +32,21 @@ export default function OutfitDetail() {
   const fetchOutfitDetails = useCallback(async () => {
     try {
       setError("");
-      const response = await fetch(
-        `${API_BASE_URL}/api/outfits/${id}?user_id=${user.uid}`
-      );
+      const firebaseAuth = getAuth();
+      const currentUser = (firebaseAuth && firebaseAuth.currentUser) || user;
+      if (!currentUser) {
+        console.warn("fetchOutfitDetails: no authenticated user, aborting");
+        setError("You must be signed in to view this outfit");
+        setLoading(false);
+        return;
+      }
+
+      const uid = currentUser.uid;
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/outfits/${id}?user_id=${encodeURIComponent(uid)}`;
+      console.debug("fetchOutfitDetails: requesting", url);
+
+      const response = await fetch(url);
       
       if (response.status === 404) {
         setError("Outfit not found");
@@ -48,8 +62,12 @@ export default function OutfitDetail() {
       }
       
       const data = await response.json();
-      setOutfit(data.data);
-      setIsFavorite(data.data.is_favorite || false);
+      const outfitData = data.data || null;
+      if (outfitData) {
+        outfitData.image_url = normalizeImageUrl(outfitData.image_url || outfitData.image);
+      }
+      setOutfit(outfitData);
+      setIsFavorite((outfitData && outfitData.is_favorite) || false);
     } catch (err) {
       console.error(err);
       setError("Unable to connect to the server.");
@@ -115,18 +133,30 @@ export default function OutfitDetail() {
     try {
       setDeleteError("");
       setIsDeleting(true);
-      const response = await fetch(
-        `${API_BASE_URL}/api/outfits/${id}?user_id=${user.uid}`,
-        { method: "DELETE" }
-      );
-      
+      const firebaseAuth = getAuth();
+      const currentUser = (firebaseAuth && firebaseAuth.currentUser) || user;
+      if (!currentUser) {
+        setDeleteError("You must be signed in to delete outfits.");
+        return;
+      }
+
+      const uid = currentUser.uid;
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/outfits/${id}?user_id=${encodeURIComponent(uid)}`;
+      console.debug("handleDeleteConfirm: requesting", url);
+
+      const response = await fetch(url, { method: "DELETE" });
+
       if (!response.ok) {
+        const body = await response.text().catch(() => null);
+        console.error("handleDeleteConfirm: non-OK", response.status, body);
         setDeleteError("Failed to delete outfit.");
         return;
       }
-      
+
       navigate("/dashboard");
-    } catch {
+    } catch (err) {
+      console.error(err);
       setDeleteError("Unable to connect to server.");
     } finally {
       setIsDeleting(false);
@@ -137,17 +167,28 @@ export default function OutfitDetail() {
   const handleToggleFavorite = async () => {
     try {
       setIsTogglingFavorite(true);
+      const firebaseAuth = getAuth();
+      const currentUser = (firebaseAuth && firebaseAuth.currentUser) || user;
+      if (!currentUser) {
+        console.warn("handleToggleFavorite: no user");
+        return;
+      }
+
+      const uid = currentUser.uid;
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
       const method = isFavorite ? "DELETE" : "POST";
-      const response = await fetch(
-        `${API_BASE_URL}/api/outfits/${id}/favorite?user_id=${user.uid}`,
-        { method }
-      );
-      
-      if (!response.ok) return;
-      
+      const url = `${baseUrl}/api/outfits/${id}/favorite?user_id=${encodeURIComponent(uid)}`;
+      console.debug("handleToggleFavorite: requesting", url, "method", method);
+
+      const response = await fetch(url, { method });
+      if (!response.ok) {
+        const body = await response.text().catch(() => null);
+        console.error("handleToggleFavorite: non-OK", response.status, body);
+        return;
+      }
+
       const newFavoriteState = !isFavorite;
       setIsFavorite(newFavoriteState);
-      
       if (newFavoriteState) {
         setShowFavoriteAnimation(true);
         setTimeout(() => setShowFavoriteAnimation(false), 1000);

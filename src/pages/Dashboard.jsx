@@ -2,59 +2,14 @@ import { useState, useEffect } from "react";
 import { useAuthState } from "react-firebase-hooks/auth";
 import { useNavigate } from "react-router-dom";
 import { auth } from "../config/firebase";
-const BASE_URL = "https://psi-backend.vercel.app";
-
-const fetchOutfits = async () => {
-  try {
-    setLoading(true);
-    setError("");
-    setIsSearching(false);
-    setSearchQuery("");
-    setFilterStyle("");
-    setSortValue("recent");
-
-    const firebaseAuth = getAuth();
-    const currentUser = (firebaseAuth && firebaseAuth.currentUser) || user;
-    if (!currentUser) {
-      console.warn("fetchOutfits: no authenticated user found, aborting request");
-      setError("You must be signed in to view outfits.");
-      setLoading(false);
-      return;
-    }
-
-    const uid = currentUser.uid;
-    const url = `${BASE_URL.replace(/\/+$/g, "")}/api/outfits?user_id=${encodeURIComponent(uid)}`;
-    console.debug("fetchOutfits: requesting", url);
-
-    const response = await fetch(url, {
-      headers: { Accept: "application/json" },
-    });
-
-    if (!response.ok) {
-      const body = await response.text().catch(() => null);
-      console.error("fetchOutfits: non-OK response", response.status, body);
-      setError("Failed to load outfits. Server returned an error.");
-      return;
-    }
-
-    const data = await response.json();
-    const outfitList = data?.data || [];
-    console.debug("fetchOutfits: received outfits count=", outfitList.length);
-    setOutfits(outfitList);
-    setDisplayedOutfits(outfitList);
-  } catch (err) {
-    console.error("Error fetching outfits:", err);
-    setError("Unable to connect to the server. Please check your connection.");
-  } finally {
-    setLoading(false);
-  }
-};import { getAuth } from "firebase/auth";
+import { getAuth } from "firebase/auth";
 import { API_BASE_URL } from "../config/api";
 import Carousel from "../components/Carousel";
 import UploadButton from "../components/UploadButton";
 import UploadModal from "../components/UploadModal";
 import FilterBar from "../components/FilterBar";
 import Footer from "../components/Footer";
+import { normalizeImageUrl } from "../utils/imageUtils";
 
 export default function Dashboard() {
   const [user] = useAuthState(auth);
@@ -110,9 +65,14 @@ export default function Dashboard() {
 
       const data = await response.json();
       const outfitList = data.data || [];
-      console.debug("fetchOutfits: received outfits count=", outfitList.length);
-      setOutfits(outfitList);
-      setDisplayedOutfits(outfitList);
+      // Normalize image URLs before setting state
+      const normalized = outfitList.map((o) => ({
+        ...o,
+        image_url: normalizeImageUrl(o.image_url || o.image),
+      }));
+      console.debug("fetchOutfits: received outfits count=", normalized.length);
+      setOutfits(normalized);
+      setDisplayedOutfits(normalized);
     } catch (error) {
       console.error("Error fetching outfits:", error);
       setError("Unable to connect to the server. Please check your connection.");
@@ -490,7 +450,9 @@ export default function Dashboard() {
                               if (rawImage) {
                                 const normalizedBase = String(BASE_URL).replace(/\/+$/g, "");
                                 let imageSrc = rawImage;
-                                if (imageSrc.startsWith("/")) {
+                                const devMatch = String(imageSrc).match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/.*)$/i);
+                                if (devMatch && devMatch[1]) imageSrc = `${normalizedBase}${devMatch[1]}`;
+                                else if (imageSrc.startsWith("/")) {
                                   imageSrc = `${normalizedBase}${imageSrc}`;
                                 } else if (!/^https?:\/\//i.test(imageSrc) && !imageSrc.startsWith("data:")) {
                                   imageSrc = `${normalizedBase}/${imageSrc}`;
