@@ -313,49 +313,51 @@ export default function OutfitDetail() {
         </div>
 
         <div className="max-w-7xl mx-auto px-6 lg:px-12 relative -mt-32">
-          <div className="bg-white/70 backdrop-blur-xl border-2 border-white rounded-3xl shadow-2xl p-8 lg:p-12">
-            <div className="flex justify-between items-center gap-4">
-              <div className="min-w-0 flex-1 space-y-5">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-px bg-stone-400"></div>
-                  <span className="text-xs uppercase tracking-[0.4em] text-stone-600 font-light">
-                    Outfit Details
-                  </span>
-                </div>
+          <div className="bg-white/70 backdrop-blur-xl border-2 border-white rounded-3xl shadow-2xl p-6 lg:p-12">
+            <div className="space-y-6 lg:space-y-0">
+              {/* Header and buttons wrapper */}
+              <div className="flex flex-col lg:flex-row lg:justify-between lg:items-start gap-6">
+                <div className="min-w-0 flex-1 space-y-5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-px bg-stone-400"></div>
+                    <span className="text-xs uppercase tracking-[0.4em] text-stone-600 font-light">
+                      Outfit Details
+                    </span>
+                  </div>
 
-                <h1 
-                  className="text-4xl lg:text-5xl font-light text-stone-900 tracking-tight truncate"
-                  title={outfit.name || "Untitled Outfit"}
-                >
-                  {outfit.name || "Untitled Outfit"}
-                </h1>
-                
-                <div className="flex flex-wrap items-center gap-4 pt-2">
-                  <StatusBadge status={outfit.analysis_status} />
+                  <h1 
+                    className="text-3xl md:text-4xl lg:text-5xl font-light text-stone-900 tracking-tight break-words"
+                    title={outfit.name || "Untitled Outfit"}
+                  >
+                    {outfit.name || "Untitled Outfit"}
+                  </h1>
                   
-                  {outfit.created_at && (
-                    <>
-                      <div className="w-px h-6 bg-stone-300"></div>
-                      <div className="flex items-center gap-2 text-stone-600">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-sm font-light">
-                          {new Date(outfit.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
-                        </span>
-                      </div>
-                    </>
-                  )}
+                  <div className="flex flex-wrap items-center gap-3 md:gap-4 pt-2">
+                    <StatusBadge status={outfit.analysis_status} />
+                    
+                    {outfit.created_at && (
+                      <>
+                        <div className="hidden sm:block w-px h-6 bg-stone-300"></div>
+                        <div className="flex items-center gap-2 text-stone-600">
+                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                          </svg>
+                          <span className="text-sm font-light">
+                            {new Date(outfit.created_at).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+                          </span>
+                        </div>
+                      </>
+                    )}
+                  </div>
                 </div>
-              </div>
 
-              {/* Action buttons */}
-              <div className="flex gap-3 shrink-0">
+                {/* Action buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
               {/* Favorite button */}
               <button
                 onClick={handleToggleFavorite}
                 disabled={isTogglingFavorite}
-                className={`relative inline-flex items-center gap-2 px-5 py-3 rounded-xl border-2 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-60 ${
+                className={`relative inline-flex items-center justify-center gap-2 px-4 md:px-5 py-3 rounded-xl border-2 transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-60 w-full sm:w-auto ${
                   isFavorite
                     ? "border-rose-400/60 bg-rose-50/80 text-rose-700 hover:bg-rose-100/80"
                     : "border-stone-300 bg-white text-stone-700 hover:bg-stone-50"
@@ -382,13 +384,13 @@ export default function OutfitDetail() {
                 )}
                 
                 {isTogglingFavorite ? (
-                  <svg className="w-4 h-4 animate-spin" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className="w-4 h-4 animate-spin flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <circle className="opacity-25" cx="12" cy="12" r="10" strokeWidth="4" />
                     <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
                   </svg>
                 ) : (
                   <svg 
-                    className="w-4 h-4 transition-transform duration-300"
+                    className="w-4 h-4 transition-transform duration-300 flex-shrink-0"
                     fill={isFavorite ? "currentColor" : "none"} 
                     stroke="currentColor" 
                     viewBox="0 0 24 24"
@@ -402,7 +404,7 @@ export default function OutfitDetail() {
                   </svg>
                 )}
                 
-                <span className="text-xs uppercase tracking-[0.2em] font-light">
+                <span className="text-xs uppercase tracking-[0.2em] font-light whitespace-nowrap">
                   {isFavorite ? "Favorited" : "Favorite"}
                 </span>
               </button>
@@ -410,13 +412,15 @@ export default function OutfitDetail() {
               {/* Delete button */}
               <button
                 onClick={() => setIsDeleteConfirmOpen(true)}
-                className="inline-flex items-center gap-2 px-5 py-3 bg-red-50/80 border-2 border-red-300/60 rounded-xl text-red-700 hover:bg-red-100/80 transition-all duration-300 shadow-lg hover:shadow-xl"
+                className="inline-flex items-center justify-center gap-2 px-4 md:px-5 py-3 bg-red-50/80 border-2 border-red-300/60 rounded-xl text-red-700 hover:bg-red-100/80 transition-all duration-300 shadow-lg hover:shadow-xl w-full sm:w-auto"
               >
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
                 </svg>
-                <span className="text-xs uppercase tracking-[0.2em] font-light">Delete</span>
+                <span className="text-xs uppercase tracking-[0.2em] font-light whitespace-nowrap">Delete</span>
               </button>
+                </div>
+              </div>
             </div>
           </div>
         </div>

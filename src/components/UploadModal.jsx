@@ -68,7 +68,10 @@ export default function UploadModal({ isOpen, onClose, onUploadSuccess }) {
         });
       }, 200);
 
-      const response = await fetch(`${API_BASE_URL}/api/outfits`, {
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/outfits`;
+      console.debug("UploadModal.handleUpload: uploading to", url, file.name);
+      const response = await fetch(url, {
         method: "POST",
         body: formData,
       });

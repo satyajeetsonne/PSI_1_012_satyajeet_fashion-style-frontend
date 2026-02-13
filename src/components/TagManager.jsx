@@ -19,9 +19,10 @@ export default function TagManager({ outfitId, userId }) {
     try {
       setLoading(true);
       setError("");
-      const res = await fetch(
-        `${API_BASE_URL}/api/outfits/${outfitId}/tags?user_id=${userId}`
-      );
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/outfits/${outfitId}/tags?user_id=${encodeURIComponent(userId)}`;
+      console.debug("TagManager.fetchTags: requesting", url);
+      const res = await fetch(url);
       if (!res.ok) {
         throw new Error("Failed to fetch tags");
       }
@@ -65,14 +66,14 @@ export default function TagManager({ outfitId, userId }) {
     setError("");
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/outfits/${outfitId}/tags?user_id=${userId}`,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ tag: tagToAdd }),
-        }
-      );
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/outfits/${outfitId}/tags?user_id=${encodeURIComponent(userId)}`;
+      console.debug("TagManager.handleAdd: requesting", url);
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ tag: tagToAdd }),
+      });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.detail || "Failed to add tag");
@@ -96,10 +97,10 @@ export default function TagManager({ outfitId, userId }) {
     setError("");
 
     try {
-      const res = await fetch(
-        `${API_BASE_URL}/api/outfits/${outfitId}/tags/${encodeURIComponent(tag)}?user_id=${userId}`,
-        { method: "DELETE" }
-      );
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/outfits/${outfitId}/tags/${encodeURIComponent(tag)}?user_id=${encodeURIComponent(userId)}`;
+      console.debug("TagManager.handleRemove: requesting", url);
+      const res = await fetch(url, { method: "DELETE" });
       if (!res.ok) {
         const errData = await res.json().catch(() => ({}));
         throw new Error(errData.detail || "Failed to remove tag");

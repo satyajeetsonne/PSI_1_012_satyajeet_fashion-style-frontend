@@ -1,7 +1,22 @@
 import { Link } from "react-router-dom";
+import { API_BASE_URL } from "../config/api";
 
 export default function OutfitCard({ outfit }) {
-  const isValidFashionImage = outfit.image_url || outfit.image;
+  const rawImage = outfit.image_url || outfit.image;
+  const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+  const isValidFashionImage = Boolean(rawImage);
+  const imageSrc = (() => {
+    if (!rawImage) return null;
+    // Preserve data URIs
+    if (/^data:/i.test(rawImage)) return rawImage;
+    // If backend returned a dev absolute URL (http://localhost:8000/...), rewrite to production base
+    const devMatch = String(rawImage).match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/.*)$/i);
+    if (devMatch && devMatch[1]) return `${baseUrl}${devMatch[1]}`;
+    // Absolute remote URLs (already production) — keep as-is
+    if (/^https?:\/\//i.test(rawImage)) return rawImage;
+    if (rawImage.startsWith("/")) return `${baseUrl}${rawImage}`;
+    return `${baseUrl}/${rawImage}`;
+  })();
 
   const getCategoryEmoji = (category) => {
     if (!category) return "";
@@ -34,7 +49,7 @@ export default function OutfitCard({ outfit }) {
           {isValidFashionImage ? (
             <>
               <img
-                src={outfit.image_url || outfit.image}
+                src={imageSrc}
                 alt={outfit.name || "Outfit"}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700"
               />

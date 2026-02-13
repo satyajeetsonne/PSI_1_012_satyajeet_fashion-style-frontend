@@ -1,9 +1,31 @@
 import { useState, useEffect } from "react";
+import { API_BASE_URL } from "../config/api";
 
 export default function ImageViewer({ imageUrl, outfitName }) {
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [imageLoaded, setImageLoaded] = useState(false);
-  const [hasValidImage, setHasValidImage] = useState(Boolean(imageUrl));
+  const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+
+  const normalizeSrc = (src) => {
+    if (!src) return src;
+    if (/^data:/i.test(src) || /^https?:\/\//i.test(src)) return src;
+    if (src.startsWith("/")) return `${baseUrl}${src}`;
+    return `${baseUrl}/${src}`;
+  };
+
+  // Rewrite dev localhost absolute URLs (backend may return http://localhost:8000/...) to production base URL
+  const normalizeDevHost = (src) => {
+    if (!src) return src;
+    const m = String(src).match(/^https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?(\/.*)$/i);
+    if (m && m[1]) return `${baseUrl}${m[1]}`;
+    return src;
+  };
+
+  const normalizedDevImageUrl = normalizeDevHost(normalizedImageUrl);
+  const finalImageUrl = normalizedDevImageUrl;
+
+  const normalizedImageUrl = normalizeSrc(imageUrl);
+  const [hasValidImage, setHasValidImage] = useState(Boolean(finalImageUrl));
 
   useEffect(() => {
     if (!isFullscreen) return;
@@ -71,7 +93,7 @@ export default function ImageViewer({ imageUrl, outfitName }) {
 
             {/* Image */}
             <img
-              src={imageUrl}
+              src={finalImageUrl}
               alt={outfitName || "Outfit"}
               className={`w-full h-full object-cover transition-all duration-500 ${
                 imageLoaded ? "opacity-100" : "opacity-0"
@@ -126,7 +148,7 @@ export default function ImageViewer({ imageUrl, outfitName }) {
           {/* Image */}
           <div className="relative z-10 max-w-[90vw] max-h-[85vh] flex items-center justify-center">
             <img
-              src={imageUrl}
+              src={finalImageUrl}
               alt={outfitName || "Outfit"}
               className="max-w-full max-h-[85vh] object-contain rounded-xl shadow-2xl"
             />

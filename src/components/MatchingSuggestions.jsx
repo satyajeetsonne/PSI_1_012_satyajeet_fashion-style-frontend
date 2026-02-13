@@ -31,18 +31,14 @@ export default function MatchingSuggestions({ outfitId, userId, analysisStatus }
       setLoading(true);
       setError("");
 
-      const response = await fetch(
-        `${API_BASE_URL}/api/outfits/${outfitId}/matching?user_id=${userId}`,
-        {
-          method: "POST",
-        }
-      );
+      const baseUrl = String(API_BASE_URL).replace(/\/+$/g, "");
+      const url = `${baseUrl}/api/outfits/${outfitId}/matching?user_id=${encodeURIComponent(userId)}`;
+      console.debug("MatchingSuggestions.fetchSuggestions: requesting", url);
+      const response = await fetch(url, { method: "POST" });
 
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.detail || "Failed to generate suggestions"
-        );
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || "Failed to generate suggestions");
       }
 
       const data = await response.json();
